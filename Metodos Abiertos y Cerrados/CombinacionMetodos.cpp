@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <iomanip>
 
 using namespace std;
 
@@ -18,8 +19,8 @@ int main (void) {
         cout << "2. Falsa posicion [Metodo Cerrado]" << endl;
         cout << "3. Punto fijo [Metodo Abierto]" << endl;
         cout << "4. Newton-Raphson [Metodo Abierto]" << endl;
-        cout<< "5. Secante [Metodo Abierto]" << endl;
-        cout<< "6. Salir" << endl;
+        cout << "5. Secante [Metodo Abierto]" << endl;
+        cout << "6. Salir" << endl;
         cout << "Seleccione una opcion: ";
         cin >> opcion;
 
@@ -51,11 +52,15 @@ int main (void) {
 
 void biseccion() {
     double a, b, c, c_viejo, fa, fb, fc, error;
-    int iter = 0, max_iter = 3;
-    double tol = 1e-5;
-    auto f = [](double x) { return ((-0.5 * pow(x, 2))+ (2.5*x)+ 4.5); };
+    int iter = 0, max_iter = 100, precision;
+    double tol = 0.1;
+    auto f = [](double x) { return 0.116667*x*x*x - 1.35*x*x +4.233333*x - 3.0; };
+    
     cout << "Ingrese el intervalo [a, b]: "<<endl;
     cin >> a >> b;
+    cout << "Ingrese la cantidad de decimales a mostrar: ";
+    cin >> precision;
+    cout << fixed << setprecision(precision);
 
     fa = f(a);
     fb = f(b);
@@ -70,7 +75,7 @@ void biseccion() {
         c = (a + b) / 2;
         fc = f(c);
 
-        error = fabs(c - c_viejo);
+        error = ((fabs(c - c_viejo))/ (fabs(c)) )* 100;
         c_viejo = c;
 
         cout << "Iteracion " << iter + 1 << ": a = " << a << ", b = " << b << ", c = " << c << ", error = " << error << endl;
@@ -92,18 +97,22 @@ void biseccion() {
         }
         
         iter++;
-    } while (fabs(b - a) > tol && iter < max_iter);
+    } while ( iter < max_iter);
 
     cout << "La raiz es: " << c << " y el error es: "<<error<<endl;
 }
 
 void falsaposicion() {
     double a, b, c, c_viejo, fa, fb, fc, error;
-    int iter = 0, max_iter = 1000000000;
-    double tol = 1e-5;
-    auto f = [](double x) { return ((9.81*x)/14) * (1 - exp(-(14/x)*7)) - 35; };
+    int iter = 0, max_iter = 100, precision;
+    double tol = 1e-8;
+    auto f = [](double x) { return 2.12295*x*x - 0.206982*x - 0.952854; };
+    
     cout << "Ingrese el intervalo [a, b]: ";
     cin >> a >> b;
+    cout << "Ingrese la cantidad de decimales a mostrar: ";
+    cin >> precision;
+    cout << fixed << setprecision(precision);
 
     fa = f(a);
     fb = f(b);
@@ -132,7 +141,6 @@ void falsaposicion() {
         error = fabs(c - c_viejo);
         c_viejo = c;
         
-
         cout << "Iteracion " << iter + 1 << ": a = " << a << ", b = " << b << ", c = " << c << endl;
 
         if (error < tol || fc == 0.0) {
@@ -145,15 +153,17 @@ void falsaposicion() {
     cout << "La raiz es: " << c << " y el error es: "<<error<<endl;
 }
 
-
-
 void puntofijo(){
     double x0, x1, error;
-    int iter = 0, max_iter = 100;
-    double tol = 1e-6; 
-    auto g = [] (double x) {return sqrt((x+5)/2);};  
+    int iter = 0, max_iter = 100, precision;
+    double tol = 1e-12; 
+    auto g = [] (double x) {return (-sin(x) + exp(x))/3 ;}; 
+    
     cout << "Ingrese el valor inicial x0: ";
     cin >> x0;
+    cout << "Ingrese la cantidad de decimales a mostrar: ";
+    cin >> precision;
+    cout << fixed << setprecision(precision);
 
     do {
         if(abs((g(x0 + 0.001) - g(x0))/ 0.001) >= 1){
@@ -171,15 +181,18 @@ void puntofijo(){
     cout << "La raiz es: " << x1 << ", el error es: " << error << " y la cantidad total de iteraciones es: " << iter << endl;
 }
 
-
 void newtonRaphson(){
     double x0, x1, error;
-    int iter = 0, max_iter = 100;
-    double tol = 1e-6;
-    auto f = [](double x) { return x * x - 9 * x + 2; };
-    auto df = [](double x) { return 2 * x - 9; };
+    int iter = 0, max_iter = 100, precision;
+    double tol = 1e-8;
+    auto f = [](double x) {  return 3*x + sin(x) - pow(exp(1), x) ;};
+    auto df = [f](double x) { return (f(x + 0.01) - f(x - 0.01)) / (2.0 * 0.01); }; 
+    
     cout << "Ingrese el valor inicial x0: ";
     cin >> x0;
+    cout << "Ingrese la cantidad de decimales a mostrar: ";
+    cin >> precision;
+    cout << fixed << setprecision(precision);
 
     do {
         if(fabs(df(x0)) < 1e-6) {
@@ -187,7 +200,7 @@ void newtonRaphson(){
             return;
         }
         x1 = x0 - f(x0) / df(x0);
-        error = fabs(x1 - x0);
+        error = (fabs(x1 - x0));
         cout << "Iteracion " << iter + 1 << ": x0 = " << x0 << ", x1 = " << x1 << endl;
 
         x0 = x1;
@@ -199,11 +212,15 @@ void newtonRaphson(){
 
 void secante() {
     double x0, x1, x2, error;
-    int iter = 0, max_iter = 100;
+    int iter = 0, max_iter = 100, precision;
     double tol = 1e-6;
     auto f = [](double x) { return x * x - 9 * x + 2; };
+    
     cout << "Ingrese los valores iniciales x0 y x1: ";
     cin >> x0 >> x1;
+    cout << "Ingrese la cantidad de decimales a mostrar: ";
+    cin >> precision;
+    cout << fixed << setprecision(precision);
 
     do {
         if(fabs(f(x1) - f(x0)) < 1e-6) {
@@ -220,5 +237,4 @@ void secante() {
     } while (iter < max_iter && error > tol);
 
     cout << "La raiz es: " << x2 << ", el error es: " << error << " y la cantidad total de iteraciones es: " << iter << endl;
-
 }
