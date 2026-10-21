@@ -1,11 +1,10 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
 // Funcion diferencial: y' = f(x,y)
 double f(double x, double y) {
-    return cos(x * y);
+    return (2*x + 1) * pow(y, 1./2);
 }
 
 int main() {
@@ -30,11 +29,12 @@ int main() {
     printf("1. Euler simple\n");
     printf("2. Euler mejorado (Heun)\n");
     printf("3. Euler mejorado (Punto medio)\n");
+    printf("4. Runge-Kutta de cuarto orden clasico\n");
     printf("Ingrese el metodo: ");
     scanf("%d", &metodo);
 
-    if(metodo < 1 || metodo > 3) {
-        printf("Entre 1 y 3 GIL.\n");
+    if(metodo < 1 || metodo > 4) {
+        printf("Ingrese un metodo entre 1 y 4.\n");
         return 1;
     }
 
@@ -60,16 +60,34 @@ int main() {
             case 2: {
                 double yt = y[i] + h * f(x[i], y[i]);
 
-                y[i+1] = y[i] + (h/2.0) *
-                         (f(x[i], y[i]) + f(x[i+1], yt));
+                y[i+1] = y[i] + (h/2.0) * (f(x[i], y[i]) + f(x[i+1], yt));
                 break;
             }
+
             //-------- Euler mejorado: Punto medio --------
             case 3: {
                 double xm = (x[i] + x[i+1]) / 2.0;
                 double ym = y[i] + (h/2.0) * f(x[i], y[i]);
 
                 y[i+1] = y[i] + h * f(xm, ym);
+                break;
+            }
+
+            //-------- Runge-Kutta de cuarto orden --------
+            case 4: {
+                double k1 = f(x[i], y[i]);
+
+                double k2 = f(x[i] + h/2.0,
+                              y[i] + (h/2.0) * k1);
+
+                double k3 = f(x[i] + h/2.0,
+                              y[i] + (h/2.0) * k2);
+
+                double k4 = f(x[i] + h,
+                              y[i] + h * k3);
+
+                y[i+1] = y[i] + (h/6.0) *
+                         (k1 + 2*k2 + 2*k3 + k4);
                 break;
             }
         }
@@ -87,14 +105,14 @@ int main() {
     }
 
     for(int i = 0; i <= n; i++) {
-        fprintf(fp, "%.6f\t%.6f\n", x[i], y[i]);
+        fprintf(fp, "%.5f\t%.5f\n", x[i], y[i]);
     }
 
     fclose(fp);
 
     printf("\nResultado de la aproximacion:\n");
-    printf("x = %.6f\n", x[n]);
-    printf("y = %.6f\n", y[n]);
+    printf("x = %.5f\n", x[n]);
+    printf("y = %.5f\n", y[n]);
     printf("Los puntos se guardaron en grafico.txt\n");
 
     return 0;
