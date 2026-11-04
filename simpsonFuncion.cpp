@@ -3,7 +3,7 @@
 
 // Función que se va a integrar
 double f(double x) {
-    double f = pow (x,3.0) + 2 * pow(x,2.0) + 1;
+    double f =exp(2*sin(x)) * (1+ log(x));
     return f;
 }
 

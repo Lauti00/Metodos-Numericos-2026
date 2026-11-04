@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <iomanip>
+#include <iostream>
+
+using namespace std;
 
 #define TOL 1e-6
+
 
 // Función para calcular los coeficientes de Spline Cúbico mediante Gauss
 void splineCubico(double x[], double y[], int n, double sol[]) {
@@ -97,14 +102,14 @@ void splineCubico(double x[], double y[], int n, double sol[]) {
 int main() {
     FILE *fp = fopen("puntos.txt", "r");
     if (!fp) {
-        printf("No se pudo abrir 'puntos.txt'\n");
+        cout<< "No se pudo abrir 'puntos.txt'\n" << endl;
         return 1;
     }
 
     int n;  // Cantidad de puntos
     fscanf(fp, "%d", &n);
     if((n - 1) <= 0 || (n - 1) % 2 != 0) {
-        printf("El numero de subintervalos debe ser un entero positivo par.\n");
+        cout<< "El numero de subintervalos debe ser un entero positivo par.\n" << endl;
         return 1;
     }
 
@@ -128,13 +133,13 @@ int main() {
     double xp[n], yp[n];
 
     if (equiespaciados) {
-        printf("Los puntos ESTAN equiespaciados.\n");
+        cout << "Los puntos ESTAN equiespaciados.\n" << endl;
         for (int i = 0; i < n; i++) {
             xp[i] = x[i];
             yp[i] = y[i];
         }
     } else {
-        printf("Los puntos NO estan equiespaciados. Reajustando con Spline Cubico...\n");
+        cout << "Los puntos NO estan equiespaciados. Reajustando con Spline Cubico...\n" << endl;
 
         int m = n - 1;
         int N = 4 * m;
@@ -178,7 +183,8 @@ int main() {
     suma = suma + 4 * yp[n-2];
     double I = (h / 3.0) * suma;
 
-    printf("\nEl resultado de la integral es: %f\n", I);
+   cout << "\nEl resultado de la integral es: "
+     << fixed << setprecision(10) << I << endl;
 
     return 0;
 }

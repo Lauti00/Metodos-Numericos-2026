@@ -1,153 +1,285 @@
-#include <iostream> 
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cmath>
+#include <iomanip>
+#include <algorithm>
+
+using namespace std;
+
+// Funcion exacta del ejercicio
+double funcionExacta(double x) {
+    return exp(2.0 * sin(x)) * (1.0 + log(x));
+}
+
+// Evaluar un polinomio cubico
+double evaluarSpline(double x, int k, const vector<double>& sol) {
+    double a = sol[4*k];
+    double b = sol[4*k+1];
+    double c = sol[4*k+2];
+    double d = sol[4*k+3];
+
+    return a*x*x*x + b*x*x + c*x + d;
+}
 
 int main() {
-    FILE *fp = fopen("puntos.txt", "r");
+
+    //========================================
+    // 1. LEER LOS PUNTOS
+    //========================================
+
+    ifstream fp("puntos.txt");
+
     if (!fp) {
-        printf("No se pudo abrir 'puntos.txt'\n");
+        cout << "No se pudo abrir puntos.txt\n";
         return 1;
     }
 
-    int n;  // Leo cantidad de puntos
-    fscanf(fp, "%d", &n);
+    int n;
+    fp >> n;
 
-    double x[n], y[n];
+    if (n < 2) {
+        cout << "Se necesitan al menos 2 puntos.\n";
+        return 1;
+    }
+
+    vector<double> x(n), y(n);
+
     for (int i = 0; i < n; i++) {
-        fscanf(fp, "%lf %lf", &x[i], &y[i]);
-    }
-    fclose(fp);
-
-    int m = n - 1;       // cantidad de intervalos
-    int N = 4 * m;       // cantidad de incógnitas
-
-    double a[N][N], b[N], sol[N];
-
-    // inicializo en 0
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) a[i][j] = 0.0;
-        b[i] = 0.0;
-        sol[i] = 0.0;
+        if (!(fp >> x[i] >> y[i])) {
+            cout << "Error leyendo los puntos.\n";
+            return 1;
+        }
     }
 
-    //-------- Primeras 2n filas --------
+    fp.close();
+
+    // Verificar que los puntos esten ordenados
+    for (int i = 0; i < n-1; i++) {
+        if (x[i+1] <= x[i]) {
+            cout << "Los valores de x deben ser crecientes.\n";
+            return 1;
+        }
+    }
+
+    int m = n - 1;       // Cantidad de intervalos
+    int N = 4 * m;       // Cantidad de incognitas
+
+    //========================================
+    // 2. ARMAR EL SISTEMA DE ECUACIONES
+    //========================================
+
+    vector<vector<double>> A(N, vector<double>(N, 0.0));
+    vector<double> B(N, 0.0);
+    vector<double> sol(N, 0.0);
+
+    // Interpolacion: cada polinomio pasa por
+    // los dos extremos de su intervalo
+
     for (int k = 0; k < m; k++) {
+
         for (int j = 0; j < 4; j++) {
-            a[2*k][4*k + j]     = pow(x[k],   3 - j);
-            a[2*k+1][4*k + j]   = pow(x[k+1], 3 - j);
+
+            A[2*k][4*k+j] =
+                pow(x[k], 3-j);
+
+            A[2*k+1][4*k+j] =
+                pow(x[k+1], 3-j);
         }
-        b[2*k]   = y[k];
-        b[2*k+1] = y[k+1];
+
+        B[2*k] = y[k];
+        B[2*k+1] = y[k+1];
     }
 
-    //-------- n-1 ecuaciones derivadas primeras en internos --------
-    for (int k = 0; k <= m - 2; k++) {
-        double xp1 = x[k+1];
+    // Continuidad de la primera derivada
+    for (int k = 0; k < m-1; k++) {
+
+        double xp = x[k+1];
+
         for (int j = 0; j <= 2; j++) {
-            double coeff = (3 - j) * pow(xp1, 2 - j);
-            a[2*m + k][4*k + j]     += coeff;
-            a[2*m + k][4*(k+1) + j] -= coeff;
+
+            double coef = (3-j) * pow(xp, 2-j);
+
+            A[2*m+k][4*k+j] += coef;
+            A[2*m+k][4*(k+1)+j] -= coef;
         }
-        b[2*m + k] = 0.0;
     }
 
-    //-------- n-1 ecuaciones derivadas segundas en internos --------
-    for (int k = 0; k <= m - 2; k++) {
-        double xp1 = x[k+1];
-        a[3*m - 1 + k][4*k + 0]     += 3.0 * xp1;
-        a[3*m - 1 + k][4*k + 1]     += 1.0;
-        a[3*m - 1 + k][4*(k+1) + 0] -= 3.0 * xp1;
-        a[3*m - 1 + k][4*(k+1) + 1] -= 1.0;
-        b[3*m - 1 + k] = 0.0;
+    // Continuidad de la segunda derivada
+    for (int k = 0; k < m-1; k++) {
+
+        double xp = x[k+1];
+
+        A[3*m-1+k][4*k] += 3.0*xp;
+        A[3*m-1+k][4*k+1] += 1.0;
+
+        A[3*m-1+k][4*(k+1)] -= 3.0*xp;
+        A[3*m-1+k][4*(k+1)+1] -= 1.0;
     }
 
-    //-------- derivadas en frontera --------
-    a[4*m - 2][0] = 3.0 * x[0];
-    a[4*m - 2][1] = 1.0;
-    b[4*m - 2] = 0.0;
+    // Condiciones de spline NATURAL:
+    // Segunda derivada igual a cero
+    // en el primer y ultimo punto
 
-    a[4*m - 1][4*(m-1) + 0] = 3.0 * x[m];
-    a[4*m - 1][4*(m-1) + 1] = 1.0;
-    b[4*m - 1] = 0.0;
+    A[4*m-2][0] = 3.0*x[0];
+    A[4*m-2][1] = 1.0;
 
-    //-------- Gauss con pivoteo --------
+    A[4*m-1][4*(m-1)] = 3.0*x[n-1];
+    A[4*m-1][4*(m-1)+1] = 1.0;
+
+    //========================================
+    // 3. GAUSS CON PIVOTEO
+    //========================================
+
     for (int k = 0; k < N; k++) {
+
         int maxRow = k;
-        double maxVal = fabs(a[k][k]);
+        double maxVal = fabs(A[k][k]);
+
         for (int i = k+1; i < N; i++) {
-            if (fabs(a[i][k]) > maxVal) {
-                maxVal = fabs(a[i][k]);
+
+            if (fabs(A[i][k]) > maxVal) {
+                maxVal = fabs(A[i][k]);
                 maxRow = i;
             }
         }
+
+        if (maxVal < 1e-12) {
+            cout << "El sistema no puede resolverse.\n";
+            return 1;
+        }
+
+        // Intercambiar filas
         if (maxRow != k) {
-            for (int j = k; j < N; j++) {
-                double tmp = a[k][j];
-                a[k][j] = a[maxRow][j];
-                a[maxRow][j] = tmp;
-            }
-            double tmpb = b[k];
-            b[k] = b[maxRow];
-            b[maxRow] = tmpb;
+
+            swap(A[k], A[maxRow]);
+            swap(B[k], B[maxRow]);
         }
+
+        // Eliminacion
         for (int i = k+1; i < N; i++) {
-            double factor = a[i][k] / a[k][k];
+
+            double factor = A[i][k] / A[k][k];
+
             for (int j = k; j < N; j++) {
-                a[i][j] -= factor * a[k][j];
+                A[i][j] -= factor * A[k][j];
             }
-            b[i] -= factor * b[k];
+
+            B[i] -= factor * B[k];
         }
     }
 
+    // Sustitucion hacia atras
     for (int i = N-1; i >= 0; i--) {
-        double s = b[i];
-        for (int j = i+1; j < N; j++) s -= a[i][j] * sol[j];
-        sol[i] = s / a[i][i];
+
+        double suma = B[i];
+
+        for (int j = i+1; j < N; j++) {
+            suma -= A[i][j] * sol[j];
+        }
+
+        sol[i] = suma / A[i][i];
     }
 
-    //-------- Mostrar polinomios --------
-    printf("\nSpline cúbico por intervalos:\n");
+    //========================================
+    // 4. MOSTRAR LOS POLINOMIOS
+    //========================================
+
+    cout << "\nSPLINE CUBICO NATURAL\n\n";
+
+    cout << setprecision(8);
+
     for (int k = 0; k < m; k++) {
-        double ak = sol[4*k + 0];
-        double bk = sol[4*k + 1];
-        double ck = sol[4*k + 2];
-        double dk = sol[4*k + 3];
-        printf("[%g, %g]: S_%d(x) = %g x^3 + %g x^2 + %g x + %g\n",
-               x[k], x[k+1], k, ak, bk, ck, dk);
+
+        cout << "Intervalo [" << x[k]
+             << ", " << x[k+1] << "]\n";
+
+        cout << "S_" << k << "(x) = "
+             << sol[4*k] << " x^3 + "
+             << sol[4*k+1] << " x^2 + "
+             << sol[4*k+2] << " x + "
+             << sol[4*k+3] << "\n\n";
     }
 
-    char opcion;
-    printf("\n¿Desea valuar el spline en un punto? (s/n): ");
-    scanf(" %c", &opcion);
+    //========================================
+    // 5. GENERAR TABLA DE RESULTADOS
+    //========================================
 
-    while(opcion == 's' || opcion == 'S') {
-        double xval;
-        printf("Ingrese el valor de x a evaluar: ");
-        scanf("%lf", &xval);
+    double h;
 
-        //-------- Buscar intervalo donde cae xval --------
+    cout << "Ingrese el paso h para evaluar: ";
+    cin >> h;
+
+    if (h <= 0) {
+        cout << "El paso debe ser positivo.\n";
+        return 1;
+    }
+
+    ofstream salida("resultados.txt");
+
+    if (!salida) {
+        cout << "No se pudo crear resultados.txt\n";
+        return 1;
+    }
+
+    cout << "\nTABLA DE RESULTADOS\n\n";
+
+    cout << fixed << setprecision(6);
+
+    cout << "     x       Spline       Exacta       Error\n";
+
+    salida << fixed << setprecision(6);
+    salida << "     x       Spline       Exacta       Error\n";
+
+    double xmin = x[0];
+    double xmax = x[n-1];
+
+    int pasos = (int)floor((xmax-xmin)/h + 1e-10);
+
+    for (int j = 0; j <= pasos; j++) {
+
+        double xv = xmin + j*h;
+
+        // Buscar el intervalo
         int k = -1;
-        for(int i=0; i<n-1; i++) {
-            if(xval >= x[i] && xval <= x[i+1]) {
+
+        for (int i = 0; i < m; i++) {
+
+            if (xv >= x[i] && xv <= x[i+1]) {
                 k = i;
                 break;
             }
         }
 
-        if(k == -1) {
-            printf("El valor %.4f está fuera del rango de los puntos.\n", xval);
-        } else {
-            double ak = sol[4*k + 0];
-            double bk = sol[4*k + 1];
-            double ck = sol[4*k + 2];
-            double dk = sol[4*k + 3];
-            double px = ak*pow(xval,3) + bk*pow(xval,2) + ck*xval + dk;
-            printf("S_%d(%.4f) = %.6f\n", k, xval, px);
+        // Si estamos exactamente en el ultimo punto
+        if (fabs(xv-xmax) < 1e-10) {
+            k = m-1;
         }
 
-        printf("\n¿Desea valuar otro punto? (s/n): ");
-        scanf(" %c", &opcion);
+        if (k != -1) {
+
+            double spline = evaluarSpline(xv, k, sol);
+
+            double exacta = funcionExacta(xv);
+
+            double error = fabs(exacta-spline);
+
+            cout << setw(8) << xv
+                 << setw(13) << spline
+                 << setw(13) << exacta
+                 << setw(13) << error << "\n";
+
+            salida << setw(8) << xv
+                   << setw(13) << spline
+                   << setw(13) << exacta
+                   << setw(13) << error << "\n";
+        }
     }
+
+    salida.close();
+
+    cout << "\nLos resultados se guardaron en resultados.txt\n";
+
     return 0;
 }

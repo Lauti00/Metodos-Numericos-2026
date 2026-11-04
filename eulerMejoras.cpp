@@ -4,7 +4,7 @@
 
 // Funcion diferencial: y' = f(x,y)
 double f(double x, double y) {
-    return (2*x + 1) * pow(y, 1./2);
+    return -2*x*y;
 }
 
 int main() {
