@@ -10,7 +10,7 @@ double f1(double x, double y1, double y2) {
 
 // Funcion diferencial 2
 double f2(double x, double y1, double y2) {
-    y2 = 4 * cos(x) - y1;
+    y2 = -y1;
     return y2;
 }
 

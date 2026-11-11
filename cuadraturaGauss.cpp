@@ -3,7 +3,7 @@
 
 // Funcion que se va a integrar
 double f(double x) {
-    return pow(x, 2) + 1;
+    return 2-0.5*(x-1) - 2.25*pow(x-1,2)+0.75*pow(x-1,3); ;
 }
 
 int main() {
